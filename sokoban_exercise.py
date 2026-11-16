@@ -1,9 +1,10 @@
-"""第13回 倉庫番・演習版（TODO 1〜3 実装済み）
+"""第13回 倉庫番・演習版（TODO 1〜3 + 手数制限つき）
 
 Week 13 Sokoban exercise, completed.
   TODO 1: move the player with WASD (stay inside the board)
   TODO 2: walls block the player
   TODO 3: boxes can be pushed (blocked by walls or other boxes)
+  Extra : stage 4 and a move limit for every stage
 """
 
 # Screen origin (0, 0) is top-left. Right -> x increases, down -> y increases.
@@ -33,7 +34,7 @@ MAP_TEXT = [
 #  . # $  #
 #      @  #
 ###########""",
-"""#########
+    """#########
 #       #
 # .  $  #
 #   @   #
@@ -99,8 +100,9 @@ def print_board(board):
             else:
                 output += " "
         print(output)
-        left = board["limit"] - board["steps"]
-        print(f"移動回数: {board['steps']} (残り {left}) | WASD 移動 / U 戻す / R 再開 / Q 終了")
+    left = board["limit"] - board["steps"]  # moves left
+    print(f"移動回数: {board['steps']} (残り {left}) | WASD 移動 / U 戻す / R 再開 / Q 終了")
+
 
 def in_field(board, point):
     """座標が盤面内か調べる。引数：board, (x,y)。戻り値：bool。"""
@@ -206,6 +208,13 @@ def start():
                 print("全ステージクリア！")
                 break
             input("Enterで次のステージへ...")
+            board = new_board(MAP_TEXT[index])
+            continue
+        # Move limit: checked AFTER "completed", so clearing the stage
+        # on the very last allowed move still counts as a win.
+        if board["steps"] >= board["limit"]:
+            print("手数オーバー！ステージをやり直します。")
+            input("Enterで再挑戦...")
             board = new_board(MAP_TEXT[index])
             continue
         key = input("操作 > ").strip().lower()[:1]
