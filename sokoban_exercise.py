@@ -42,6 +42,9 @@ MAP_TEXT = [
 #########""",
 ]
 
+# Maximum number of moves for each stage (same order as MAP_TEXT)
+MOVE_LIMITS = [10, 20, 30, 25]
+
 
 def new_board(level_text):
     """ステージの文字列を読み、管理データを作る。引数：文字列。戻り値：辞書。"""
@@ -55,6 +58,7 @@ def new_board(level_text):
         "crates": set(),  # box positions
         "hero": None,     # player position
         "steps": 0,
+        "limit": MOVE_LIMITS[MAP_TEXT.index(level_text)],  # moves allowed in this stage
         "past": [],       # history for Undo
     }
     for y, row in enumerate(rows):
@@ -95,8 +99,8 @@ def print_board(board):
             else:
                 output += " "
         print(output)
-    print(f"移動回数: {board['steps']} | WASD 移動 / U 戻す / R 再開 / Q 終了")
-
+        left = board["limit"] - board["steps"]
+        print(f"移動回数: {board['steps']} (残り {left}) | WASD 移動 / U 戻す / R 再開 / Q 終了")
 
 def in_field(board, point):
     """座標が盤面内か調べる。引数：board, (x,y)。戻り値：bool。"""
