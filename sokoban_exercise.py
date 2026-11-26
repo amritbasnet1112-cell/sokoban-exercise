@@ -1,10 +1,10 @@
-"""第13回 倉庫番・演習版（TODO 1〜3 + 手数制限つき）
+"""第13回 倉庫番・演習版（TODO 1〜3 + 手数制限つき + クリア評価）
 
 第13回 倉庫番演習の完成版。
   TODO 1: WASD でプレイヤーを移動する（盤面外に出ない）
   TODO 2: 壁でプレイヤーの移動をブロックする
   TODO 3: 箱を押せるようにする（壁や他の箱でブロックされる）
-  追加要素: ステージ4 と各ステージの手数制限
+  追加要素: ステージ4 と各ステージの手数制限、クリア評価と合計手数の表示
 """
 
 # 画面の原点 (0, 0) は左上。右へ行くほど x が増え、下へ行くほど y が増える。
@@ -194,17 +194,30 @@ def completed(board):
     return board["crates"] == board["targets"]
 
 
+def rating(board):
+    """使った手数の割合から星評価を返す。引数：board。戻り値：文字列。"""
+    ratio = board["steps"] / board["limit"]
+    if ratio <= 0.5:
+        return "★★★"
+    elif ratio <= 0.8:
+        return "★★☆"
+    return "★☆☆"
+
+
 def start():
     """キー入力・ステージ進行を管理する。戻り値：なし。"""
     index = 0
+    total_steps = 0  # 全ステージの合計手数
     board = new_board(MAP_TEXT[index])
     while True:
         print_board(board)
         if completed(board):
-            print("ステージクリア！")
+            total_steps += board["steps"]
+            print(f"ステージクリア！ 使用手数: {board['steps']}手 / 制限: {board['limit']}手")
+            print("評価：" + rating(board))
             index += 1
             if index == len(MAP_TEXT):
-                print("全ステージクリア！")
+                print(f"全ステージクリア！ 合計手数: {total_steps}手")
                 break
             input("Enterで次のステージへ...")
             board = new_board(MAP_TEXT[index])
