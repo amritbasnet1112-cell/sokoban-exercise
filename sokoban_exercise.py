@@ -1,16 +1,16 @@
 """第13回 倉庫番・演習版（TODO 1〜3 + 手数制限つき）
 
-Week 13 Sokoban exercise, completed.
-  TODO 1: move the player with WASD (stay inside the board)
-  TODO 2: walls block the player
-  TODO 3: boxes can be pushed (blocked by walls or other boxes)
-  Extra : stage 4 and a move limit for every stage
+第13回 倉庫番演習の完成版。
+  TODO 1: WASD でプレイヤーを移動する（盤面外に出ない）
+  TODO 2: 壁でプレイヤーの移動をブロックする
+  TODO 3: 箱を押せるようにする（壁や他の箱でブロックされる）
+  追加要素: ステージ4 と各ステージの手数制限
 """
 
-# Screen origin (0, 0) is top-left. Right -> x increases, down -> y increases.
+# 画面の原点 (0, 0) は左上。右へ行くほど x が増え、下へ行くほど y が増える。
 KEY_TO_VECTOR = {"w": (0, -1), "s": (0, 1), "a": (-1, 0), "d": (1, 0)}
 
-# # wall, . goal, $ box, @ player, * box on goal, + player on goal
+# # 壁, . ゴール, $ 箱, @ プレイヤー, * ゴール上の箱, + ゴール上のプレイヤー
 MAP_TEXT = [
     """#########
 #       #
@@ -43,7 +43,7 @@ MAP_TEXT = [
 #########""",
 ]
 
-# Maximum number of moves for each stage (same order as MAP_TEXT)
+# 各ステージの最大手数（MAP_TEXT と同じ順番）
 MOVE_LIMITS = [10, 20, 30, 25]
 
 
@@ -54,13 +54,13 @@ def new_board(level_text):
         raise ValueError("マップの横幅を揃えてください")
     board = {
         "size": (len(rows[0]), len(rows)),
-        "solid": set(),  # wall positions
-        "targets": set(),  # goal positions
-        "crates": set(),  # box positions
-        "hero": None,     # player position
+        "solid": set(),  # 壁の座標集合
+        "targets": set(),  # ゴールの座標集合
+        "crates": set(),  # 箱の座標集合
+        "hero": None,     # プレイヤーの座標
         "steps": 0,
-        "limit": MOVE_LIMITS[MAP_TEXT.index(level_text)],  # moves allowed in this stage
-        "past": [],       # history for Undo
+        "limit": MOVE_LIMITS[MAP_TEXT.index(level_text)],  # このステージで使える手数上限
+        "past": [],       # Undo 用の履歴
     }
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
@@ -100,7 +100,7 @@ def print_board(board):
             else:
                 output += " "
         print(output)
-    left = board["limit"] - board["steps"]  # moves left
+    left = board["limit"] - board["steps"]  # 残り手数
     print(f"移動回数: {board['steps']} (残り {left}) | WASD 移動 / U 戻す / R 再開 / Q 終了")
 
 
@@ -117,10 +117,10 @@ def next_position(origin, vector):
 
 
 def can_enter(board, destination):
-    """TODO 2: Can something stand on this cell?
+    """TODO 2: 指定マスに進入できるか判定する。
 
-    True only if the cell is (1) inside the board AND (2) not a wall.
-    (The demo calls the wall set "walls"; here it is board["solid"].)
+    (1) 盤面内である AND (2) 壁ではない 場合のみ True を返す。
+    （デモ版では壁集合を "walls" と呼ぶが、ここでは board["solid"]）
     """
     inside = in_field(board, destination)
     is_wall = destination in board["solid"]
@@ -128,55 +128,54 @@ def can_enter(board, destination):
 
 
 def push_crate(board, crate_position, vector):
-    """TODO 3: Try to push the box at crate_position one cell in direction vector.
+    """TODO 3: crate_position にある箱を vector 方向に1マス押せるか試す。
 
-    Returns True if the box moved, False if it could not move.
-    If it cannot move, nothing is changed.
+    箱が動けたら True、動けなければ False を返す。
+    動けない場合は盤面を変更しない。
     """
-    # Where would the box end up?
+    # 箱の移動先座標を計算する
     new_position = next_position(crate_position, vector)
 
-    # Blocked by a wall or the board edge?
+    # 壁または盤面外でブロックされるか？
     if not can_enter(board, new_position):
         return False
 
-    # Blocked by another box?
+    # 別の箱でブロックされるか？
     if new_position in board["crates"]:
         return False
 
-    # The way is free: move the box.
+    # 通路が空いているので箱を移動する
     board["crates"].remove(crate_position)
     board["crates"].add(new_position)
     return True
 
 
 def apply_move(board, direction_key):
-    """TODO 1-3: Move the player. Returns True if the move succeeded."""
-    # Ignore keys that are not W/A/S/D.
+    """TODO 1-3: プレイヤーを移動する。移動できたら True を返す。"""
+    # W/A/S/D 以外のキーは無視する
     if direction_key not in KEY_TO_VECTOR:
         return False
 
-    # Step 1 (TODO 1): where is the player now, and where does he want to go?
+    # 手順1（TODO 1）: 現在のプレイヤー位置と移動先座標を求める
     vector = KEY_TO_VECTOR[direction_key]
     current = board["hero"]
     target = next_position(current, vector)
 
-    # Step 2 (TODO 1 + 2): outside the board or a wall -> cannot move.
+    # 手順2（TODO 1 + 2）: 盤面外または壁なら移動できない
     if not can_enter(board, target):
         return False
 
-    # Save the boxes BEFORE any push, so Undo can restore them.
-    # .copy() makes a separate set; without it the history would
-    # point to the same set and change when the box moves.
+    # 箱を押す前に現在の箱の集合をコピーして保存し、Undo で復元できるようにする。
+    # .copy() で別セットにしないと、履歴が同じ集合を参照して移動後に変わってしまう。
     crates_before = board["crates"].copy()
 
-    # Step 3 (TODO 3): is there a box in the way? Then try to push it.
+    # 手順3（TODO 3）: 移動先に箱があるか？あれば押すのを試みる
     if target in board["crates"]:
         pushed = push_crate(board, target, vector)
         if not pushed:
-            return False  # box is stuck -> the player does not move either
+            return False  # 箱が動けない場合はプレイヤーも動かない
 
-    # Step 4: the move succeeded. Record history, move player, count step.
+    # 手順4: 移動成功。履歴を記録し、プレイヤーを動かし、手数を増やす
     board["past"].append((current, crates_before))
     board["hero"] = target
     board["steps"] += 1
@@ -210,8 +209,7 @@ def start():
             input("Enterで次のステージへ...")
             board = new_board(MAP_TEXT[index])
             continue
-        # Move limit: checked AFTER "completed", so clearing the stage
-        # on the very last allowed move still counts as a win.
+        # 手数制限は completed の後に判定するため、最終手でクリアした場合は成功扱いになる
         if board["steps"] >= board["limit"]:
             print("手数オーバー！ステージをやり直します。")
             input("Enterで再挑戦...")
